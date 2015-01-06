@@ -1,0 +1,14 @@
+* FORTRAN/TK
+* general structures and global constants
+* by Robin Haberkorn
+
+      include 'ftkcommon.fi'
+
+      structure /RXSTRING/
+       integer*4 strlength,
+     &           strptr
+      end structure
+
+      record /RXSTRING/ tkargs(25),
+     &                  retstr
+

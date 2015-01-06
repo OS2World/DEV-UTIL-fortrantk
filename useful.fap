@@ -1,0 +1,727 @@
+* FORTRAN/TK
+* useful functions/APIs - includes most of the platform
+* dependent functions
+* Includes FORTRAN/TK extensions
+* by Robin Haberkorn
+
+* General helpful functions:
+
+      integer function ntlen(ntstr)
+       character*(*) ntstr
+
+       ntlen = index(ntstr, char(0))-1
+      end
+
+      logical function cmp(strexp)
+       character*(*) strexp
+       include       'evhnd.fi'
+
+       cmp = (cmpval .EQ. strexp)
+      end
+
+      character*256 function evname(str)
+       character*(*) str
+
+       evname = str(:index(str, ' ')-1)//char(0)
+      end
+
+      character*256 function evarg(str)
+       character*(*) str
+       integer       ntlen
+
+       evarg = str(index(str, '"')+1:ntlen(str)-1)//char(0)
+      end
+
+      character*256 function int2str(num)
+       integer num,
+     &         ntlen,
+     &         x
+
+       x = 1
+       write(int2str,*) num, char(0)
+
+       while(int2str(x:x) .EQ. ' ') x = x + 1
+       int2str = int2str(x:ntlen(int2str)+1)
+      end
+
+      character*256 function real2str(num)
+       real    num
+       integer ntlen,
+     &         x
+
+       x = 1
+       write(real2str,*) num, char(0)
+
+       while(real2str(x:x) .EQ. ' ') x = x + 1
+       real2str = real2str(x:ntlen(real2str)+1)
+      end
+
+      integer function str2int(str)
+       character*(*) str
+       integer       ntlen
+
+       read(str(:ntlen(str)),*, ERR=10) str2int
+10    end
+
+      real function str2real(str)
+       character*(*) str
+       integer       ntlen
+
+       read(str(:ntlen(str)),*, ERR=10) str2real
+10    end
+
+* File managing:
+
+* CurDir: platform dependent function
+
+c$ifdef     __OS2__
+      character*256 function GetCurDir()
+       integer  DosQueryCurrentDisk,
+     &          DosQueryCurrentDir
+       integer  disknum/0/,
+     &          lmap/0/,
+     &          rdlen
+
+       GetCurDir = char(0)
+* DosQueryCurrentDir just gets the path on the current drive -
+* not the whole path
+       if(DosQueryCurrentDisk(disknum, lmap)) return
+
+       GetCurDir = char(64 + disknum)//':\'
+       rdlen  = len(GetCurDir) - 3
+       if(DosQueryCurrentDir(0, loc(GetCurDir) + 3, rdlen))
+     &    GetCurDir = char(0)
+      end
+c$elseifdef __WIN__
+      character*256 function GetCurDir()
+       integer GetCurrentDirectoryA
+
+       if(GetCurrentDirectoryA(len(GetCurDir), GetCurDir) .EQ. 0)
+     &    GetCurDir = char(0)
+      end
+c$endif
+
+* ChangeDir: platform dependent function
+
+c$ifdef     __OS2__
+      integer function ChangeDir(dir)
+       character*(*) dir
+       integer       DosSetCurrentDir
+
+       ChangeDir = DosSetCurrentDir(dir)
+      end
+c$elseifdef __WIN__
+      integer function ChangeDir(dir)
+       character*(*) dir
+       integer       SetCurrentDirectoryA
+
+       if(SetCurrentDirectoryA(dir) .EQ. 0) ChangeDir = 1
+      end
+c$endif
+
+* CreateDir: platform dependent function
+
+c$ifdef     __OS2__
+      integer function CreateDir(dir)
+       character*(*) dir
+       integer       DosCreateDir,
+     &               ealist/0/
+
+       CreateDir = DosCreateDir(dir, ealist)
+      end
+c$elseifdef __WIN__
+      integer function CreateDir(dir)
+       character*(*) dir
+       integer       CreateDirectoryA
+
+       structure /SECURITY_ATTRIBUTES/
+        integer nLength,
+     &          lpSecurityDescriptor
+        logical bInheritHandle
+       end structure
+       record /SECURITY_ATTRIBUTES/ secattr
+
+       secattr.nLength = isizeof(secattr)
+       if(CreateDirectoryA(dir, loc(secattr)) .EQ. 0) CreateDir = 1
+      end
+c$endif
+
+* DeleteDir: platform dependent function
+
+c$ifdef     __OS2__
+      integer function DeleteDir(dir)
+       character*(*) dir
+       integer       DosDeleteDir
+
+       DeleteDir = DosDeleteDir(dir)
+      end
+c$elseifdef __WIN__
+      integer function DeleteDir(dir)
+       character*(*) dir
+       integer       RemoveDirectoryA
+
+       if(RemoveDirectoryA(dir) .EQ. 0) DeleteDir = 1
+      end
+c$endif
+
+* CreateFile: using FORTRAN
+* could be done with CreateFile-API under Windows
+
+      integer function CreateFile(file)
+       character*(*) file
+       include       'fileprop.fi'
+       character*256 GetFirstFile,
+     &               dum
+
+       dum = GetFirstFile(file, FS_ALL)
+       if(dum(1:1) .EQ. char(0)) then
+        open(999, FILE=file(:ntlen(file)), STATUS='NEW', ERR=10)
+        close(999, ERR=10)
+
+        CreateFile = 0
+
+        quit
+10      CreateFile = 1
+         else
+        CreateFile = 1
+       end if
+      end
+
+* DeleteFile: platform dependent function
+
+c$ifdef     __OS2__
+      integer function DeleteFile(file)
+       character*(*) file
+       integer       DosDelete
+
+       DeleteFile = DosDelete(file)
+      end
+c$elseifdef __WIN__
+      integer function DeleteFile(file)
+       character*(*) file
+       integer       DeleteFileA
+
+       if(DeleteFileA(file) .EQ. 0) DeleteFile = 1
+      end
+c$endif
+
+* GetFirstFile: platform dependent function
+
+c$ifdef     __OS2__
+      character*256 function GetFirstFile(pattern, attrib)
+       character*(*) pattern
+       integer       attrib
+       include       'fsos2.fi'
+       integer       DosFindFirst
+       character*256 GetNextFile
+
+       record /BUF/ buffer
+       sat = attrib
+* All attributes = FS_ALL = '00000037'x
+       findcount = 1
+       if(DosFindFirst(pattern, finddirhnd, '00000037'x, buffer,
+     &                 isizeof(buffer), findcount, 1)) then
+        GetFirstFile = char(0)
+         else
+        if(buffer.attrFile .AND. sat) then
+         GetFirstFile = buffer.achName
+          else
+         GetFirstFile = GetNextFile()
+        end if
+       end if
+      end
+c$elseifdef __WIN__
+      character*256 function GetFirstFile(pattern, attrib)
+       character*(*) pattern
+       integer       attrib
+       include       'fswin.fi'
+       character*256 GetNextFile
+       integer       FindFirstFileA,
+     &               GetFileAttrib,
+     &               x
+
+       GetFirstFile = prepos = char(0)
+       sat = attrib
+
+       finddirhnd = FindFirstFileA(pattern, loc(buffer))
+       if(finddirhnd .NE. -1) then
+        if(buffer.cFileName(1:1) .NE. char(0)) then
+
+* Parse search path
+         do x = ntlen(pattern), 1, -1 : ploop
+          if(pattern(x:x) .EQ. '\') then
+           prepos = pattern(:x)//char(0)
+           quit : ploop
+          end if
+         end do
+
+         if(GetFileAttrib(prepos(:ntlen(prepos))//
+     &                   buffer.cFileName) .AND. sat) then
+          GetFirstFile = buffer.cFileName
+           else
+          GetFirstFile = GetNextFile()
+         end if
+        end if
+       end if
+      end
+c$endif
+
+* GetNextFile: platform dependent function
+
+c$ifdef     __OS2__
+      character*256 function GetNextFile()
+       include 'fsos2.fi'
+       integer DosFindNext
+
+       record /BUF/ buffer
+       loop
+        findcount = 1
+        if(DosFindNext(finddirhnd, buffer, isizeof(buffer),
+     &                 findcount)) then
+         GetNextFile = char(0)
+         return
+        end if
+       until(buffer.attrFile .AND. sat)
+
+       GetNextFile = buffer.achName
+      end
+c$elseifdef __WIN__
+      character*256 function GetNextFile()
+       include   'fswin.fi'
+       integer   FindNextFileA,
+     &           GetFileAttrib
+
+       loop
+        buffer.cFileName = ' '
+        if((FindNextFileA(finddirhnd, loc(buffer)) .EQ. 0) .OR.
+     &     (buffer.cFileName(1:1) .EQ. char(0))) then
+         GetNextFile = char(0)
+         return
+        end if
+       until(GetFileAttrib(prepos(:ntlen(prepos))//
+     &                     buffer.cFileName) .AND. sat)
+
+       GetNextFile = buffer.cFileName
+      end
+c$endif
+
+* CloseSearch: platform dependent function
+
+c$ifdef     __OS2__
+      integer function CloseSearch()
+       include 'fsos2.fi'
+       integer DosFindClose
+
+       CloseSearch = DosFindClose(finddirhnd)
+       if(CloseSearch .EQ. 0) finddirhnd = 'FFFFFFFF'x
+      end
+c$elseifdef __WIN__
+      integer function CloseSearch()
+       include 'fswin.fi'
+       integer FindClose
+
+       if(FindClose(finddirhnd) .EQ. 0) then
+        CloseSearch = 1
+         else
+        CloseSearch = finddirhnd = 0
+       end if
+      end
+c$endif
+
+* GetFileAttrib: platform dependent function
+
+c$ifdef     __OS2__
+      integer function GetFileAttrib(file)
+       character*(*) file
+       include       'fsublib.fi'
+       include       'fsos2.fi'
+       integer       DosQueryFileInfo
+
+       record /FILESTATUS3/ buffer
+       open(999, FILE=file(:ntlen(file)), STATUS='OLD', ACTION='READ',
+     &           ERR=10)
+
+       if(DosQueryFileInfo(syshandle(999), 1,
+     &                     buffer, isizeof(buffer))) then
+        GetFileAttrib = -1
+         else
+        GetFileAttrib = buffer.attrFile
+       end if
+
+       close(999, ERR=10)
+
+       return
+10     GetFileAttrib = -1
+      end
+c$elseifdef __WIN__
+      integer function GetFileAttrib(file)
+       character*(*) file
+       integer       GetFileAttributesA
+
+       GetFileAttrib = GetFileAttributesA(file)
+       if(GetFileAttrib .EQ. 'FFFFFFFF'x) GetFileAttrib = -1
+      end
+c$endif
+
+* SetFileAttrib: platform dependent function
+
+c$ifdef     __OS2__
+      integer function SetFileAttrib(file, attrib)
+       character*(*) file
+       integer       attrib
+       include       'fsublib.fi'
+       include       'fsos2.fi'
+       integer       DosSetFileInfo
+
+       record /FILESTATUS3/ buffer
+       open(999, FILE=file(:ntlen(file)), STATUS='OLD',
+     &      ACTION='READWRITE', SHARE='DENYRW', ERR=10)
+
+       buffer.attrFile = attrib
+       SetFileAttrib = DosSetFileInfo(syshandle(999), 1,
+     &                                buffer, isizeof(buffer))
+
+       close(999, ERR=10)
+
+       return
+10     SetFileAttrib = 1
+      end
+c$elseifdef __WIN__
+      integer function SetFileAttrib(file, attrib)
+       character*(*) file
+       integer       attrib
+       integer       SetFileAttributesA
+
+       if(SetFileAttributesA(file, attrib)) then
+        SetFileAttrib = 0
+         else
+        SetFileAttrib = 1
+       end if
+      end
+c$endif
+
+* LoadModule: platform dependent function
+
+c$ifdef     __OS2__
+      integer function LoadModule(lib)
+       character*(*) lib
+       integer       DosLoadModule
+       character*256 buffer
+
+       if(DosLoadModule(buffer, len(buffer),
+     &                  lib, LoadModule)) LoadModule = 0
+      end
+c$elseifdef __WIN__
+      integer function LoadModule(lib)
+       character*(*) lib
+       integer       LoadLibraryA
+
+       LoadModule = LoadLibraryA(lib)
+      end
+c$endif
+
+* FreeModule: platform dependent function
+
+c$ifdef     __OS2__
+      integer function FreeModule(handle)
+       integer handle
+       integer DosFreeModule
+
+       FreeModule = DosFreeModule(handle)
+      end
+c$elseifdef __WIN__
+      integer function FreeModule(handle)
+       integer handle
+       integer FreeLibrary
+
+       while(FreeLibrary(handle)) continue
+       FreeModule = 0
+      end
+c$endif
+
+* DllGetAddress: platform dependent function
+
+c$ifdef     __OS2__
+      integer function DllGetAddress(handle, fncname)
+       integer       handle
+       character*(*) fncname
+       integer       DosQueryProcAddr
+
+       if(DosQueryProcAddr(handle, 0, fncname, DllGetAddress) .NE. 0)
+     &    DllGetAddress = 0
+      end
+c$elseifdef __WIN__
+      integer function DllGetAddress(handle, fncname)
+       integer       handle
+       character*(*) fncname
+       integer       GetProcAddress
+
+       DllGetAddress = GetProcAddress(handle, fncname)
+      end
+c$endif
+
+* GetClipboard: platform dependent function
+* including EXtended version: GetClipboardEx
+
+c$ifdef     __OS2__
+      character*256 function GetClipboard()
+       integer       WinOpenClipbrd,
+     &               WinQueryClipbrdData,
+     &               WinCloseClipbrd,
+     &               ntlen,
+     &               hab,
+     &               addr
+       character*(*) buffer
+
+       integer       CF_TEXT
+       parameter    (CF_TEXT = 1)
+
+       GetClipboard = char(0)
+
+       if(WinOpenClipbrd(hab) .NE. 0) then
+        addr = WinQueryClipbrdData(hab, CF_TEXT)
+        if(addr .NE. 0) then
+         allocate(buffer*256, location=addr)
+
+         if(ntlen(buffer) .NE. -1)
+     &    GetClipboard = buffer(:ntlen(buffer)+1)
+        end if
+
+        call WinCloseClipbrd(hab)
+       end if
+      end
+
+      record /RXSTRING/ function GetClipboardEx(size)
+       integer       size
+       include       'cbrdhnd.fi'
+       integer       WinOpenClipbrd,
+     &               WinQueryClipbrdData,
+     &               ntlen,
+     &               addr
+       character*(*) buffer
+
+       structure /RXSTRING/
+        integer*4 strlength,
+     &            strptr
+       end structure
+
+       integer       CF_TEXT
+       parameter    (CF_TEXT = 1)
+
+       GetClipboardEx.strlength = GetClipboardEx.strptr = 0
+
+       if(WinOpenClipbrd(hab) .NE. 0) then
+        addr = WinQueryClipbrdData(hab, CF_TEXT)
+        if(addr .NE. 0) then
+         allocate(buffer*size, location=addr)
+
+         if(ntlen(buffer) .NE. -1) then
+          GetClipboardEx.strlength = ntlen(buffer)+1
+          GetClipboardEx.strptr    = addr
+         end if
+        end if
+
+*       HANDLE MUST BE CLOSED LATER (CloseClipbrd)
+       end if
+      end
+c$elseifdef __WIN__
+      character*256 function GetClipboard()
+       integer       OpenClipboard,
+     &               GetClipboardData,
+     &               CloseClipboard,
+     &               ntlen,
+     &               addr
+       character*(*) buffer
+
+       integer       CF_TEXT
+       parameter    (CF_TEXT = 1)
+
+       GetClipboard = char(0)
+
+       if(OpenClipboard(0) .NE. 0) then
+        addr = GetClipboardData(CF_TEXT)
+        if(addr .NE. 0) then
+         allocate(buffer*256, location=addr)
+
+         if(ntlen(buffer) .NE. -1)
+     &    GetClipboard = buffer(:ntlen(buffer)+1)
+        end if
+
+        call CloseClipboard()
+       end if
+      end
+
+      record /RXSTRING/ function GetClipboardEx(size)
+       integer       size
+       integer       OpenClipboard,
+     &               GetClipboardData,
+     &               ntlen,
+     &               addr
+       character*(*) buffer
+
+       structure /RXSTRING/
+        integer*4 strlength,
+     &            strptr
+       end structure
+
+       integer       CF_TEXT
+       parameter    (CF_TEXT = 1)
+
+       GetClipboardEx.strlength = GetClipboardEx.strptr = 0
+
+       if(OpenClipboard(0) .NE. 0) then
+        addr = GetClipboardData(CF_TEXT)
+        if(addr .NE. 0) then
+         allocate(buffer*size, location=addr)
+
+         if(ntlen(buffer) .NE. -1) then
+          GetClipboardEx.strlength = ntlen(buffer)+1
+          GetClipboardEx.strptr    = addr
+         end if
+        end if
+
+*       HANDLE MUST BE CLOSED LATER (CloseClipbrd)
+       end if
+      end
+c$endif
+
+* SetClipboard: platform dependent function
+
+c$ifdef     __OS2__
+      integer function SetClipboard(text)
+       character*(*) text
+       integer       WinOpenClipbrd,
+     &               WinSetClipbrdData,
+     &               WinCloseClipbrd,
+     &               WinEmptyClipbrd,
+     &               DosAllocSharedMem,
+     &               addr,
+     &               hab
+       character*(*) buffer
+
+       integer       OBJ_GIVEABLE,
+     &               PAG_READ,
+     &               PAG_WRITE,
+     &               PAG_COMMIT,
+     &               CF_TEXT,
+     &               CFI_POINTER
+       parameter    (OBJ_GIVEABLE = '00000200'x,
+     &               PAG_READ     = '00000001'x,
+     &               PAG_WRITE    = '00000002'x,
+     &               PAG_COMMIT   = '00000010'x,
+     &               CF_TEXT      = 1,
+     &               CFI_POINTER  = '00000400'x)
+
+       SetClipboard = 1
+
+       if(WinOpenClipbrd(hab) .EQ. 0) return
+       guess
+        if(WinEmptyClipbrd(hab) .EQ. 0) quit
+
+        if(DosAllocSharedMem(addr, 0, 256,
+     &                       OBJ_GIVEABLE .OR. PAG_READ .OR.
+     &                       PAG_WRITE .OR. PAG_COMMIT) .EQ. 0) then
+         allocate(buffer*256, location=addr)
+         buffer = text
+
+         if(WinSetClipbrdData(hab, addr, CF_TEXT, CFI_POINTER))
+     &      SetClipboard = 0
+        end if
+       end guess
+
+       call WinCloseClipbrd(hab)
+      end
+c$elseifdef __WIN__
+      integer function SetClipboard(text)
+       character*(*) text
+       integer       OpenClipboard,
+     &               SetClipboardData,
+     &               CloseClipboard,
+     &               EmptyClipboard,
+     &               GlobalAlloc,
+     &               GlobalLock,
+     &               GlobalUnlock,
+     &               hmem,
+     &               addr
+       character*(*) buffer
+
+       integer       GMEM_MOVEABLE,
+     &               GMEM_DDESHARE,
+     &               CF_TEXT
+       parameter    (GMEM_MOVEABLE = 2,
+     &               GMEM_DDESHARE = 8192,
+     &               CF_TEXT       = 1)
+
+       SetClipboard = 1
+       if(OpenClipboard(0) .EQ. 0) return
+       guess
+        if(EmptyClipboard() .EQ. 0) quit
+
+        hmem = GlobalAlloc(GMEM_MOVEABLE .OR. GMEM_DDESHARE,
+     &                     256)
+        if(hmem) then
+         addr = GlobalLock(hmem)
+         if(addr .EQ. 0) quit
+
+         allocate(buffer*256, location=addr)
+         buffer = text
+
+         if(GlobalUnlock(hmem)) quit
+
+         if(SetClipboardData(CF_TEXT, hmem)) SetClipboard = 0
+        end if
+       end guess
+
+       call CloseClipboard()
+      end
+c$endif
+
+* CloseClipboard: platform dependet function
+* just useful for GetClipboardEx (handle should be closed later)
+
+c$ifdef     __OS2__
+      integer function CloseClipbrd()
+       include 'cbrdhnd.fi'
+       integer WinCloseClipbrd
+
+       if(WinCloseClipbrd(hab)) then
+        CloseClipbrd = 0
+         else
+        CloseClipbrd = 1
+       end if
+      end
+c$elseifdef __WIN__
+      integer function CloseClipbrd()
+       integer CloseClipboard
+
+       if(CloseClipboard()) then
+        CloseClipbrd = 0
+         else
+        CloseClipbrd = 1
+       end if
+      end
+c$endif
+
+* MessageBeep: platform dependent function
+
+c$ifdef     __OS2__
+      integer function MessageBeep(freq, dur)
+       integer freq,
+     &         dur
+       integer DosBeep
+
+       MessageBeep = DosBeep(freq, dur)
+      end
+c$elseifdef __WIN__
+      integer function MessageBeep(freq, dur)
+       integer freq,
+     &         dur
+       integer Beep
+
+       if(Beep(freq, dur)) then
+        MessageBeep = 0
+         else
+        MessageBeep = 1
+       end if
+      end
+c$endif

@@ -1,0 +1,34 @@
+* FORTRAN/TK
+* File properties
+* by Robin Haberkorn
+
+      integer   FS_NORMAL,
+     &          FS_READONLY,
+     &          FS_HIDDEN,
+     &          FS_SYSTEM,
+     &          FS_DIRECTORY,
+     &          FS_ARCHIVED,
+     &          FS_ALL,
+     &          FS_ALLFILES
+
+* define them for each platform individually
+c$ifdef     __OS2__
+      parameter(FS_NORMAL    = '00000000'x,
+     &          FS_READONLY  = '00000001'x,
+     &          FS_HIDDEN    = '00000002'x,
+     &          FS_SYSTEM    = '00000004'x,
+     &          FS_DIRECTORY = '00000010'x,
+     &          FS_ARCHIVED  = '00000020'x,
+     &          FS_ALL       = '00000037'x,
+     &          FS_ALLFILES  = '00000027'x)
+c$elseifdef __WIN__
+      parameter(FS_NORMAL    = '00000080'x,
+     &          FS_READONLY  = '00000001'x,
+     &          FS_HIDDEN    = '00000002'x,
+     &          FS_SYSTEM    = '00000004'x,
+     &          FS_DIRECTORY = '00000010'x,
+     &          FS_ARCHIVED  = '00000020'x,
+     &          FS_ALL       = '00000037'x,
+     &          FS_ALLFILES  = '00000027'x)
+c$endif
+

@@ -1,0 +1,18 @@
+* FORTRAN/TK
+* TK-Function Standart code
+* by Robin Haberkorn
+
+      include       'ftkfuncs.fi'
+      integer       numargs/0/,
+     &              callrexx,
+     &              rc
+
+      retstr.strptr = loc(dumbuf)
+
+      call tkgetargs(60, tkargs(0), numargs)
+      rc = callrexx(tkaddr(i), tkname(i),
+     &              numargs, tkargs(0), 0, retstr)
+      call resetarg(dumarg, numargs)
+
+      dumarg = GetRet(rc, tkname(i), retstr)
+

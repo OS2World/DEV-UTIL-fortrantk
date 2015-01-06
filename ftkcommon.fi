@@ -1,0 +1,18 @@
+* FORTRAN/TK
+* declarations for using the commonly declared functions
+* by Robin Haberkorn
+
+      integer       tkfkts
+      parameter    (tkfkts = 142)
+
+      character*256 rootdir
+      character*40  tkname(tkfkts)
+      integer       dllhandle,
+     &              tkaddr(tkfkts)
+      common /FTK/  tkname,
+     &              dllhandle,
+     &              tkaddr,
+     &              rootdir
+
+      save   /FTK/
+

@@ -1,0 +1,15 @@
+* FORTRAN/TK
+* Include file for Fortran/TK functions
+* including: function declarations, general variables
+* by Robin Haberkorn
+
+      include 'ftkvars.fi'
+
+      character*256 GetRet,
+     &              dumarg/' '/,
+     &              dumbuf/' '/
+
+      character     buffer*8
+
+      equivalence(retstr, buffer)
+

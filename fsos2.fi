@@ -1,0 +1,47 @@
+* FORTRAN/TK
+* common variables, structures for filesearching
+* --- OS/2 part ---
+* by Robin Haberkorn
+
+      integer          finddirhnd,
+     &                 sat
+      common /FSEARCH/ finddirhnd,
+     &                 sat
+      save   /FSEARCH/
+
+      structure /FDATE/
+       integer*2 fdate
+      end structure
+      structure /FTIME/
+       integer*2 ftime
+      end structure
+
+      structure /BUF/
+       integer          oNextEntryOffset
+       record   /FDATE/ fdateCreation
+       record   /FTIME/ ftimeCreation
+       record   /FDATE/ fdateLastAccess
+       record   /FTIME/ ftimeLastAccess
+       record   /FDATE/ fdateLastWrite
+       record   /FTIME/ ftimeLastWrite
+       integer          cbFile,
+     &                  cbFileAlloc,
+     &                  attrFile
+       integer*1        cchName
+       character*256    achName
+      end structure
+
+      structure /FILESTATUS3/
+       record /FDATE/ fdateCreation
+       record /FTIME/ ftimeCreation
+       record /FDATE/ fdateLastAccess
+       record /FTIME/ ftimeLastAccess
+       record /FDATE/ fdateLastWrite
+       record /FTIME/ ftimeLastWrite
+       integer        cbFile,
+     &                cbFileAlloc,
+     &                attrFile
+      end structure
+
+      integer      findcount
+

@@ -1,0 +1,10 @@
+* FORTRAN/TK
+* global variables of the /CBRDHND/ block
+* (saving the clipboard handle - necessary on OS/2 only)
+* by Robin Haberkorn
+
+      integer          hab
+      common /CBRDHND/ hab
+
+      save   /CBRDHND/
+

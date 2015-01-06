@@ -1,0 +1,32 @@
+* FORTRAN/TK
+* common variables, structures for filesearching
+* --- Windows part ---
+* by Robin Haberkorn
+
+      character*256    prepos
+      integer          finddirhnd,
+     &                 sat
+      common /FSEARCH/ prepos,
+     &                 finddirhnd,
+     &                 sat
+      save   /FSEARCH/
+
+      structure /FILETIME/
+       integer dwLowDateTime,
+     &         dwHighDateTime
+      end structure
+
+      structure /WIN32_FIND_DATA/
+       integer           dwFileAttributes
+       record /FILETIME/ ftCreationTime,
+     &                   ftLastAccessTime,
+     &                   ftLastWriteTime
+       integer           nFileSizeHigh,
+     &                   nFileSizeLow,
+     &                   dwReserved0,
+     &                   dwReserved1
+       character*256     cFileName
+       character*14      cAlternateFileName
+      end structure
+
+      record /WIN32_FIND_DATA/ buffer

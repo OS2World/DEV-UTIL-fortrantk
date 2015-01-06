@@ -1,0 +1,54 @@
+FORTRAN/TK History
+~~~~~~~~~~~~~~~~~~
+
+Version 0.6 beta:
+ * Added the "evname" and "evarg" character*256 functions.
+   "evname" returns the name of a given event and "evarg"
+   returns the optional argument of the event (everything after the event
+   name will be passed in quotes after the name to the TkWait-function).
+   -> Used these functions in the Editor example.
+ * Improved the source of the Calculator example.
+ * Replaced the command and batch files with easy to use makefiles.
+   Look in the readme.txt for more details.
+ * Added the missing "rexxtran.dll" to the "examples\binos2\runtime"-directory.
+
+Version 0.5 beta:
+ * Complete extensive source code make over
+ * Using a special path for the DLLs is now possible (with the TkInit
+   command).
+ * Solved problem with TkUnload under Windows.
+ * Partly new documentation (examples, source code, new README...)
+ * Completed the Calculator example (e.g. with pasting/copying from/to clipboard)
+ * Added Editor example (edit.for)
+ * Using IF/ELSEIF construction instead of SELECT blocks for event loops in
+   FORTRAN/TK programs (so there are no more problems with string comparation)
+   -> Added small CMP function to simplify the process
+ * Windows 2000: Solved problem on exit (threw an error) -> Using TkDestroy with
+   the main window to avoid (e.g. in examples)
+ * Added the remaining Rexx/Tk functions (e.g. Rexx/Tk extensions)
+ * Solved problems with Tk-functions, when they are called  with similar
+   arguments: had to manually reset the return value by an additional Assembler
+   subroutine
+ * Added the following additional FORTRAN/TK functions (extensions):
+   str2int/str2real, int2str/real2str, GetCurDir, ChangeDir, LoadModule, FreeModule,
+   DllGetAddress, GetClipboard, SetClipboard, CloseClipbrd, CDRoot
+   (addition for TkInit), CreateDir, CreateFile, DeleteFile, DeleteDir, MessageBeep,
+   GetFirstFile, GetNextFile, CloseSearch, GetFileAttrib, SetFileAttrib, cmp
+ * FORTRAN/TK is now compiled as a library
+ * Extended (function) versions:
+   Allow to exceed the 256 byte maximum of ordinary FORTRAN/TK functions (character*256)
+   by returning an RXSTRING structure instead, so the use can allocate the whole
+   space.
+   Functions: TkCgetEx, TkConfigEx, TkCurSelectionEx, TkFontFamiliesEx, TkGetEx,
+              TkGetConfigEx, TkGridInfoEx, TkGridSlavesEx, TkVarEx, TkVariableEx,
+              TkMCListboxColumnCgetEx, TkTreeGetSelectionEx, TkComboboxListGetEx,
+              GetClipboardEx
+ * Tk-Functions return CHAR(0) if the available space is insufficient
+ * Added FORTRAN/TK Icon
+ * ...
+
+Version 0.1 alpha:
+ * INITIAL RELEASE
+ * Access to most of the Rexx/Tk functions
+ * 2 example files (calc.for and example.for)
+

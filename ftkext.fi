@@ -1,0 +1,25 @@
+* FORTRAN/TK
+* TK-Function code for EXtended functions
+* by Robin Haberkorn
+
+      include       'ftkfuncs.fi'
+      integer       numargs/0/,
+     &              callrexx,
+     &              rc
+      character*(*) echar
+
+      retstr.strptr = loc(dumbuf)
+
+      call tkgetargs(56, tkargs(0), numargs)
+      rc = callrexx(tkaddr(i), tkname(i),
+     &              numargs, tkargs(0), 0, retstr)
+
+      if(rc) then
+       retstr.strlength = retstr.strptr = 0
+        else
+       !necessary ??? to null terminate string ???
+       allocate(echar*1, location=retstr.strptr+retstr.strlength)
+       echar = char(0)
+
+       retstr.strlength = retstr.strlength + 1
+      end if

@@ -1,0 +1,968 @@
+* FORTRAN/TK
+* functions, definitions and global variables
+* by Robin Haberkorn
+
+* Base functions for calls:
+c$pragma aux callrexx "!_" parm(value, reference, \
+c                               value, reference, \
+c                               value, reference)
+c$pragma aux tkgetargs parm(value, reference, reference) \
+c                      caller [ecx] [eax] [ebx]
+c$pragma aux resetarg  parm(reference, value) [eax] [ebx]
+
+c$ifdef     __OS2__
+
+* OS/2 INCLUDE FILES
+c$define INCL_DOSMODULEMGR
+c$define INCL_DOSFILEMGR
+c$define INCL_DOSMEMMGR
+c$define INCL_DOSPROCESS
+c$define INCL_WINCLIPBOARD
+c$include os2.fap
+
+* these have to be redefined (unknown reason):
+c$pragma aux (__syscall) DosQueryCurrentDir \
+c                        parm(value, value, reference)
+
+c$elseifdef __WIN__
+
+* There are no Windows 32-bit Include files,
+* we declare needed functions manually:
+
+* DLL handling:
+c$pragma aux (__stdcall) LoadLibraryA         parm(value)
+c$pragma aux (__stdcall) GetProcAddress       parm(value, value)
+c$pragma aux (__stdcall) FreeLibrary          parm(value)
+
+* File/directory handling:
+c$pragma aux (__stdcall) GetCurrentDirectoryA parm(value, value)
+c$pragma aux (__stdcall) SetCurrentDirectoryA parm(value)
+c$pragma aux (__stdcall) CreateDirectoryA     parm(value, value)
+c$pragma aux (__stdcall) RemoveDirectoryA     parm(value)
+c$pragma aux (__stdcall) DeleteFileA          parm(value)
+c$pragma aux (__stdcall) GetFileAttributesA   parm(value)
+c$pragma aux (__stdcall) SetFileAttributesA   parm(value, value)
+
+* File searching:
+c$pragma aux (__stdcall) FindFirstFileA       parm(value, value)
+c$pragma aux (__stdcall) FindNextFileA        parm(value, value)
+c$pragma aux (__stdcall) FindClose            parm(value)
+
+* Clipboard handling:
+c$pragma aux (__stdcall) OpenClipboard        parm(value)
+c$pragma aux (__stdcall) CloseClipboard
+c$pragma aux (__stdcall) EmptyClipboard
+c$pragma aux (__stdcall) SetClipboardData     parm(value, value)
+c$pragma aux (__stdcall) GetClipboardData     parm(value)
+c$pragma aux (__stdcall) GlobalAlloc          parm(value, value)
+c$pragma aux (__stdcall) GlobalLock           parm(value)
+c$pragma aux (__stdcall) GlobalUnlock         parm(value)
+
+* Misc.:
+c$pragma aux (__stdcall) Beep                 parm(value, value)
+
+c$endif
+
+c$noreference
+
+      block data FTK_BD
+* commonly needed variables (mainly TkFuncs and Prog.):
+       include 'ftkcommon.fi'
+
+       data tkname/'TkActivate'c,
+     &             'TkAdd'c,
+     &             'TkAfter'c,
+     &             'TkBBox'c,
+     &             'TkBind'c,
+     &             'TkButton'c,
+     &             'TkCanvas'c,
+     &             'TkCanvasAddTag'c,
+     &             'TkCanvasArc'c,
+     &             'TkCanvasBind'c,
+     &             'TkCanvasBitmap'c,
+     &             'TkCanvasCanvasx'c,
+     &             'TkCanvasCanvasy'c,
+     &             'TkCanvasCoords'c,
+     &             'TkCanvasDChars'c,
+     &             'TkCanvasDTag'c,
+     &             'TkCanvasDelete'c,
+     &             'TkCanvasFind'c,
+     &             'TkCanvasFocus'c,
+     &             'TkCanvasImage'c,
+     &             'TkCanvasLine'c,
+     &             'TkCanvasOval'c,
+     &             'TkCanvasPolygon'c,
+     &             'TkCanvasPostscript'c,
+     &             'TkCanvasRectangle'c,
+     &             'TkCanvasText'c,
+     &             'TkCanvasType'c,
+     &             'TkCanvasWindow'c,
+     &             'TkCget'c,
+     &             'TkCheckButton'c,
+     &             'TkChooseColor'c,
+     &             'TkChooseDirectory'c,
+     &             'TkConfig'c,
+     &             'TkCurSelection'c,
+     &             'TkDelete'c,
+     &             'TkDestroy'c,
+     &             'TkEntry'c,
+     &             'TkError'c,
+     &             'TkEvent'c,
+     &             'TkFocus'c,
+     &             'TkFontActual'c,
+     &             'TkFontConfig'c,
+     &             'TkFontCreate'c,
+     &             'TkFontDelete'c,
+     &             'TkFontFamilies'c,
+     &             'TkFontMeasure'c,
+     &             'TkFontMetrics'c,
+     &             'TkFontNames'c,
+     &             'TkFrame'c,
+     &             'TkGet'c,
+     &             'TkGetConfig'c,
+     &             'TkGetOpenFile'c,
+     &             'TkGetSaveFile'c,
+     &             'TkGrab'c,
+     &             'TkGrid'c,
+     &             'TkGridBbox'c,
+     &             'TkGridColumnConfig'c,
+     &             'TkGridConfig'c,
+     &             'TkGridForget'c,
+     &             'TkGridInfo'c,
+     &             'TkGridLocation'c,
+     &             'TkGridPropagate'c,
+     &             'TkGridRowConfig'c,
+     &             'TkGridRemove'c,
+     &             'TkGridSize'c,
+     &             'TkGridSlaves'c,
+     &             'TkImageBitmap'c,
+     &             'TkImagePhoto'c,
+     &             'TkIndex'c,
+     &             'TkInsert'c,
+     &             'TkItemConfig'c,
+     &             'TkLabel'c,
+     &             'TkListBox'c,
+     &             'TkLower'c,
+     &             'TkMenu'c,
+     &             'TkMenuClone'c,
+     &             'TkMenuEntryCget'c,
+     &             'TkMenuEntryConfig'c,
+     &             'TkMenuInvoke'c,
+     &             'TkMenuPost'c,
+     &             'TkMenuPostCascade'c,
+     &             'TkMenuType'c,
+     &             'TkMenuUnPost'c,
+     &             'TkMenuYPosition'c,
+     &             'TkMessageBox'c,
+     &             'TkNearest'c,
+     &             'TkPack'c,
+     &             'TkPopup'c,
+     &             'TkRadioButton'c,
+     &             'TkRaise'c,
+     &             'TkScale'c,
+     &             'TkScan'c,
+     &             'TkScrollBar'c,
+     &             'TkSee'c,
+     &             'TkSelection'c,
+     &             'TkSet'c,
+     &             'TkSetFileType'c,
+     &             'TkTcl'c,
+     &             'TkText'c,
+     &             'TkTextImageCreate'c,
+     &             'TkTextTagBind'c,
+     &             'TkTextTagConfig'c,
+     &             'TkTopLevel'c,
+     &             'TkVar'c,
+     &             'TkVariable'c,
+     &             'TkWait'c,
+     &             'TkWinfo'c,
+     &             'TkWm'c,
+     &             'TkXView'c,
+     &             'TkYView'c,
+     &             'TkNotebook'c,
+     &             'TkNotebookAddTab'c,
+     &             'TkNotebookButton'c,
+     &             'TkNotebookConfig'c,
+     &             'TkNotebookFrame'c,
+     &             'TkNotebookRaise'c,
+     &             'TkMCListbox'c,
+     &             'TkMCListboxColumnAdd'c,
+     &             'TkMCListboxColumnCget'c,
+     &             'TkMCListboxColumnConfig'c,
+     &             'TkMCListboxColumnDelete'c,
+     &             'TkMCListboxColumnNames'c,
+     &             'TkMCListboxColumnNearest'c,
+     &             'TkMCListboxLabelBind'c,
+     &             'TkTree'c,
+     &             'TkTreeAddNode'c,
+     &             'TkTreeClose'c,
+     &             'TkTreeDNode'c,
+     &             'TkTreeGetLabel'c,
+     &             'TkTreeGetSelection'c,
+     &             'TkTreeNodeConfig'c,
+     &             'TkTreeOpen'c,
+     &             'TkTreeSetSelection'c,
+     &             'TkCombobox'c,
+     &             'TkComboboxICursor'c,
+     &             'TkComboboxListDelete'c,
+     &             'TkComboboxListGet'c,
+     &             'TkComboboxListIndex'c,
+     &             'TkComboboxListInsert'c,
+     &             'TkComboboxListSize'c,
+     &             'TkComboboxSelect'c,
+     &             'TkComboboxSubwidget'c      /
+
+* For event handling:
+       include 'evhnd.fi'
+
+* For file searches:
+c$ifdef     __OS2__
+       integer          finddirhnd,
+     &                  sat
+       common /FSEARCH/ finddirhnd,
+     &                  sat
+       data             finddirhnd/'FFFFFFFF'x/
+c$elseifdef __WIN__
+       character*256    prepos
+       integer          finddirhnd,
+     &                  sat
+       common /FSEARCH/ prepos,
+     &                  finddirhnd,
+     &                  sat
+c$endif
+
+       save   /FSEARCH/
+
+* For the Clipboard handle (OS/2 only):
+c$ifdef     __OS2__
+       include 'cbrdhnd.fi'
+c$endif
+      end
+
+      character*256 function TkActivate()
+       integer i/1/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkAdd()
+       integer i/2/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkAfter()
+       integer i/3/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkBBox()
+       integer i/4/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkBind()
+       integer i/5/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkButton()
+       integer i/6/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvas()
+       integer i/7/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvasAddTag()
+       integer i/8/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvasArc()
+       integer i/9/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvasBind()
+       integer i/10/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvasBitmap()
+       integer i/11/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvasCanvasx()
+       integer i/12/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvasCanvasy()
+       integer i/13/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvasCoords()
+       integer i/14/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvasDChars()
+       integer i/15/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvasDTag()
+       integer i/16/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvasDelete()
+       integer i/17/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvasFind()
+       integer i/18/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvasFocus()
+       integer i/19/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvasImage()
+       integer i/20/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvasLine()
+       integer i/21/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvasOval()
+       integer i/22/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvasPolygon()
+       integer i/23/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvasPostscript()
+       integer i/24/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvasRectangle()
+       integer i/25/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvasText()
+       integer i/26/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvasType()
+       integer i/27/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCanvasWindow()
+       integer i/28/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCget()
+       integer i/29/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCheckButton()
+       integer i/30/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkChooseColor()
+       integer i/31/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkChooseDirectory()
+       integer i/32/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkConfig()
+       integer i/33/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCurSelection()
+       integer i/34/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkDelete()
+       integer i/35/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkDestroy()
+       integer i/36/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkEntry()
+       integer i/37/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkError()
+       integer i/38/
+       include 'ftkstdna.fi'
+       TkError = dumarg
+      end
+      character*256 function TkEvent()
+       integer i/39/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkFocus()
+       integer i/40/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkFontActual()
+       integer i/41/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkFontConfig()
+       integer i/42/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkFontCreate()
+       integer i/43/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkFontDelete()
+       integer i/44/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkFontFamilies()
+       integer i/45/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkFontMeasure()
+       integer i/46/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkFontMetrics()
+       integer i/47/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkFontNames()
+       integer i/48/
+       include 'ftkstdna.fi'
+       TkFontNames = dumarg
+      end
+      character*256 function TkFrame()
+       integer i/49/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkGet()
+       integer i/50/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkGetConfig()
+       integer i/51/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkGetOpenFile()
+       integer i/52/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkGetSaveFile()
+       integer i/53/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkGrab()
+       integer i/54/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkGrid()
+       integer i/55/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkGridBbox()
+       integer i/56/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkGridColumnConfig()
+       integer i/57/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkGridConfig()
+       integer i/58/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkGridForget()
+       integer i/59/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkGridInfo()
+       integer i/60/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkGridLocation()
+       integer i/61/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkGridPropagate()
+       integer i/62/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkGridRowConfig()
+       integer i/63/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkGridRemove()
+       integer i/64/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkGridSize()
+       integer i/65/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkGridSlaves()
+       integer i/66/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkImageBitmap()
+       integer i/67/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkImagePhoto()
+       integer i/68/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkIndex()
+       integer i/69/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkInsert()
+       integer i/70/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkItemConfig()
+       integer i/71/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkLabel()
+       integer i/72/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkListBox()
+       integer i/73/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkLower()
+       integer i/74/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkMenu()
+       integer i/75/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkMenuClone()
+       integer i/76/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkMenuEntryCget()
+       integer i/77/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkMenuEntryConfig()
+       integer i/78/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkMenuInvoke()
+       integer i/79/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkMenuPost()
+       integer i/80/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkMenuPostCascade()
+       integer i/81/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkMenuType()
+       integer i/82/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkMenuUnPost()
+       integer i/83/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkMenuYPosition()
+       integer i/84/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkMessageBox()
+       integer i/85/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkNearest()
+       integer i/86/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkPack()
+       integer i/87/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkPopup()
+       integer i/88/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkRadioButton()
+       integer i/89/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkRaise()
+       integer i/90/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkScale()
+       integer i/91/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkScan()
+       integer i/92/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkScrollbar()
+       integer i/93/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkSee()
+       integer i/94/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkSelection()
+       integer i/95/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkSet()
+       integer i/96/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkSetFileType()
+       integer i/97/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkTcl()
+       integer i/98/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkText()
+       integer i/99/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkTextImageCreate()
+       integer i/100/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkTextTagBind()
+       integer i/101/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkTextTagConfig()
+       integer i/102/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkTopLevel()
+       integer i/103/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkVar()
+       integer i/104/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkVariable()
+       integer i/105/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkWait()
+       integer i/106/
+       include 'ftkstdna.fi'
+       TkWait = dumarg
+      end
+      character*256 function TkWinfo()
+       integer i/107/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkWm()
+       integer i/108/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkXView()
+       integer i/109/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkYView()
+       integer i/110/
+       include 'ftkstd.fi'
+      end
+
+* Rexx/Tk extensions:
+      character*256 function TkNotebook()
+       integer i/111/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkNotebookAddTab()
+       integer i/112/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkNotebookButton()
+       integer i/113/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkNotebookConfig()
+       integer i/114/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkNotebookFrame()
+       integer i/115/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkNotebookRaise()
+       integer i/116/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkMCListbox()
+       integer i/117/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkMCListboxColumnAdd()
+       integer i/118/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkMCListboxColumnCget()
+       integer i/119/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkMCListboxColumnConfig()
+       integer i/120/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkMCListboxColumnDelete()
+       integer i/121/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkMCListboxColumnNames()
+       integer i/122/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkMCListboxColumnNearest()
+       integer i/123/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkMCListboxLabelBind()
+       integer i/124/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkTree()
+       integer i/125/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkTreeAddNode()
+       integer i/126/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkTreeClose()
+       integer i/127/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkTreeDNode()
+       integer i/128/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkTreeGetLabel()
+       integer i/129/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkTreeGetSelection()
+       integer i/130/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkTreeNodeConfig()
+       integer i/131/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkTreeOpen()
+       integer i/132/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkTreeSetSelection()
+       integer i/133/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkCombobox()
+       integer i/134/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkComboboxICursor()
+       integer i/135/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkComboboxListDelete()
+       integer i/136/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkComboboxListGet()
+       integer i/137/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkComboboxListIndex()
+       integer i/138/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkComboboxListInsert()
+       integer i/139/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkComboboxListSize()
+       integer i/140/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkComboboxSelect()
+       integer i/141/
+       include 'ftkstd.fi'
+      end
+      character*256 function TkComboboxSubwidget()
+       integer i/142/
+       include 'ftkstd.fi'
+      end
+
+* Extended versions:
+      record /RXSTRING/ function TkCgetEx()
+       integer i/29/
+       include 'ftkext.fi'
+       TkCgetEx = retstr
+      end
+      record /RXSTRING/ function TkConfigEx()
+       integer i/33/
+       include 'ftkext.fi'
+       TkConfigEx = retstr
+      end
+      record /RXSTRING/ function TkCurSelectionEx()
+       integer i/34/
+       include 'ftkext.fi'
+       TkCurSelectionEx = retstr
+      end
+      record /RXSTRING/ function TkFontFamiliesEx()
+       integer i/45/
+       include 'ftkext.fi'
+       TkFontFamiliesEx = retstr
+      end
+      record /RXSTRING/ function TkGetEx()
+       integer i/50/
+       include 'ftkext.fi'
+       TkGetEx = retstr
+      end
+      record /RXSTRING/ function TkGetConfigEx()
+       integer i/51/
+       include 'ftkext.fi'
+       TkGetConfigEx = retstr
+      end
+      record /RXSTRING/ function TkGridInfoEx()
+       integer i/60/
+       include 'ftkext.fi'
+       TkGridInfoEx = retstr
+      end
+      record /RXSTRING/ function TkGridSlavesEx()
+       integer i/66/
+       include 'ftkext.fi'
+       TkGridSlavesEx = retstr
+      end
+      record /RXSTRING/ function TkVarEx()
+       integer i/104/
+       include 'ftkext.fi'
+       TkVarEx = retstr
+      end
+      record /RXSTRING/ function TkVariableEx()
+       integer i/105/
+       include 'ftkext.fi'
+       TkVariableEx = retstr
+      end
+      record /RXSTRING/ function TkMCListboxColumnCgetEx()
+       integer i/119/
+       include 'ftkext.fi'
+       TkMCListboxColumnCgetEx = retstr
+      end
+      record /RXSTRING/ function TkTreeGetSelectionEx()
+       integer i/130/
+       include 'ftkext.fi'
+       TkTreeGetSelectionEx = retstr
+      end
+      record /RXSTRING/ function TkComboboxListGetEx()
+       integer i/137/
+       include 'ftkext.fi'
+       TkComboboxListGetEx = retstr
+      end
+
+* Misc. functions
+c$include useful.fap
+
+* TkInit...
+
+      integer function TkInit(binpath)
+       character*(*) binpath
+       include       'ftkcommon.fi'
+       character*256 GetCurDir
+       integer       ChangeDir,
+     &               LoadModule,
+     &               DllGetAddress,
+     &               TkUnload,
+     &               x
+
+       TkInit = 1
+       guess : ini
+* Save current directory (rootdir)
+        rootdir = GetCurDir()
+        if(rootdir(1:1) .EQ. char(0)) quit
+
+        if(ChangeDir(binpath)) quit
+
+* Init the library
+        dllhandle = LoadModule('rexxtk.dll'c)
+        if(dllhandle .EQ. 0) quit
+
+* Get function offsets
+        do x = 1, tkfkts
+         tkaddr(x) = DllGetAddress(dllhandle, tkname(x))
+         if(tkaddr(x) .EQ. 0) then
+          call TkUnload()
+          quit : ini
+         end if
+        end do
+
+        TkInit = 0
+       end guess
+      end
+
+* TkUnload...
+
+      integer function TkUnload()
+       include 'ftkcommon.fi'
+       integer FreeModule
+
+       TkUnload = FreeModule(dllhandle)
+      end
+
+* CDRoot...
+
+      integer function CDRoot()
+       include 'ftkcommon.fi'
+       integer ChangeDir
+
+       CDRoot = ChangeDir(rootdir)
+      end
+
+* GetRet: get return value of REXX call
+
+      character*256 function GetRet(rc, fncname, retstr)
+       integer       rc
+       character*(*) fncname
+       include       'ftkvars.fi'
+       character     retbuf*(*)
+
+       if(rc) then
+        write(*,*) 'FTK:',     fncname(:ntlen(fncname)),
+     &             ' ERROR: ', rc
+        GetRet = char(0)
+         else
+        if(retstr.strlength .GT. 0) then
+         allocate(retbuf*255, location=retstr.strptr)
+         if(retstr.strlength .LE. 255) then
+          GetRet = retbuf(:retstr.strlength)//char(0)
+           else
+          GetRet = retbuf(:255)//char(0)
+         end if
+          else
+         GetRet = char(0)
+        end if
+       end if
+      end
+
+c$reference
+

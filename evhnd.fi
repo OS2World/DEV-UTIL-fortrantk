@@ -1,0 +1,10 @@
+* FORTRAN/TK
+* global variables of the /EVHND/ block
+* (for event handling)
+* by Robin Haberkorn
+
+      character      cmpval*256
+      common /EVHND/ cmpval
+
+      save   /EVHND/
+

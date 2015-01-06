@@ -1,0 +1,19 @@
+* FORTRAN/TK
+* TK-Function Standart code - for functions without arguments
+* by Robin Haberkorn
+
+      include       'ftkfuncs.fi'
+      character     dum
+      integer       callrexx,
+     &              rc
+
+      retstr.strptr = loc(dumbuf)
+
+      tkargs(0).strptr    = loc(dum)
+      tkargs(0).strlength = 0
+
+      rc = callrexx(tkaddr(i), tkname(i),
+     &              0, tkargs(0), 0, retstr)
+
+      dumarg = GetRet(rc, tkname(i), retstr)
+
